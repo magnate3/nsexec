@@ -25,7 +25,7 @@ all:
 
 include $(addsuffix /module.mk,$(modules))
 
-progs += nsexec uidmap newuidshell uidmapshift usernstest usernsselfmap usernsexec
+progs +=simple nsexec uidmap newuidshell uidmapshift usernstest usernsselfmap usernsexec
 
 .PHONY: all
 all: $(progs)

@@ -1,1 +1,13 @@
 ./nsexec -u  -i   -n  -p  /bin/sh
+./nsexec -u  -i -c   -n  -p  /bin/sh
+
+=====================================================================
+root@cloud:/nsexec# ./nsexec -u  -i -c   -n  -p -m   /bin/sh
+about to clone with 6c020000
+about to unshare with 6c020011 and 20000000 
+ execve  /bin/sh 
+/ # ps -elf
+PID   USER     TIME  COMMAND
+    1 root      0:00 /bin/sh
+    2 root      0:00 ps -elf
+/ # exit

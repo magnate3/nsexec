@@ -16,8 +16,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <grp.h>
+#include <sys/mman.h>
+#include <sys/mount.h>
 
 #include "clone.h"
+#define STACK_SIZE (1024 * 1024)    /* Stack size for cloned child */
 int unshare(int flags);
 int clone(int (*fn)(void *), void *child_stack,
         int flags, void *arg, ...
@@ -228,6 +231,9 @@ int do_child(void *vargv)
 			exit(1);
 		}
 	}
+        chroot("/mycontainer/rootfs");
+        chdir("/");
+        mount("proc", "/proc", "proc", 0, NULL);
         printf(" execve  %s \n", argv[0]);
 	execve(argv[0], argv, __environ);
 	perror("execve");
@@ -260,6 +266,7 @@ int main(int argc, char *argv[])
 	int ret, use_clone = 0, ret_child_err = 0;
 	int pid;
 	char *pid_file = NULL;
+	char * stack;
     char *default_args[] = {"/bin/sh", NULL};
 
 	procname = basename(argv[0]);
@@ -315,21 +322,30 @@ int main(int argc, char *argv[])
     }
 
 	if (use_clone) {
-		int stacksize = 64*getpagesize();
-		void *childstack, *stack = malloc(stacksize);
+		//int stacksize = 64*getpagesize();
+		//void *childstack, *stack = malloc(stacksize);
+                stack = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+                if (stack == MAP_FAILED) {
+			perror("mmap");
+			return -1;
+		}
 
-        if (wait_for_exec) {
-            printf("Can't use wait_for_exec with clone.  Ignoring it\n");
-        }
+                if (wait_for_exec) {
+                printf("Can't use wait_for_exec with clone.  Ignoring it\n");
+                }
 		if (!stack) {
 			perror("malloc");
 			return -1;
 		}
-		childstack = stack + stacksize - 1;
-
 		printf("about to clone with %lx\n", flags);
+
+    /* Create a child that has its own UTS namespace;
+       the child commences execution in childFunc() */
+
 		flags |= SIGCHLD;
-		pid = clone(do_child, childstack, flags, (void *)argv);
+		printf("about to unshare with %lx and %lx \n", flags, flags & CLONE_NEWPID);
+                pid = clone(do_child, stack + STACK_SIZE, /* Assume stack grows downward */ flags, (void *)argv);
 		if (pid == -1) {
 			perror("clone");
 			return -1;
@@ -344,7 +360,7 @@ int main(int argc, char *argv[])
 				return 1;
 			opentty(ttyname);
 
-			printf("about to unshare with %lx\n", flags);
+			printf("about to unshare with %lx and %lx \n", flags, flags & CLONE_NEWPID);
 			ret = unshare(flags);
 			if (ret < 0) {
 				perror("unshare");
