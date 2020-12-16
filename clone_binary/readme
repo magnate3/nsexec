@@ -1,0 +1,8 @@
+gcc nsexec.c  cloned_binary.c  -o nsexec
+root@cloud:/nsexec/clone_binary# ./nsexec 
+ pid 81819 
+main end 
+argv[0]:  ./nsexec and pid 81819 
+ pid 81819 
+main end 
+
